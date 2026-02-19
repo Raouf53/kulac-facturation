@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kulac.S.A.S - Facturation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        #pdf-container { position: absolute; left: -10000px; top: 0; width: 210mm; }
+        #facture-a4 {
+            width: 210mm; 
+            min-height: 296mm; 
+            padding: 0mm 15mm 10mm 15mm; /* 0mm en haut pour coller au bord */
+            background: white; 
+            font-family: 'Helvetica', sans-serif;
+            display: flex; 
+            flex-direction: column; 
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 pb-10">
+
+    <div class="max-w-4xl mx-auto md:pt-10">
+        <div class="bg-white rounded-3xl shadow-2xl border-t-8 border-blue-900 overflow-hidden">
+            <div class="p-6 text-center border-b">
+                <h1 class="text-2xl font-black text-blue-900 uppercase">Kulac.S.A.S</h1>
+            </div>
+
+            <div class="p-6 md:p-10 space-y-8">
+                <div class="space-y-4">
+                    <h3 class="font-bold text-xs text-blue-900 uppercase border-b pb-1">Logo de l'entreprise</h3>
+                    <input type="file" id="ui-logo-input" accept="image/*" class="w-full p-2 border rounded-xl bg-slate-50 text-sm">
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="font-bold text-xs text-blue-900 uppercase border-b pb-1">Client/Müşteri</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="ui-clientName" placeholder="Nom du client/Müşteri Adi *" class="w-full p-4 border rounded-xl shadow-sm outline-none">
+                        <input type="text" id="ui-clientPhone" placeholder="Numéro de téléphone/Telefon Numarasi" class="w-full p-4 border rounded-xl shadow-sm outline-none">
+                        <input type="text" id="ui-clientAddr" placeholder="Adresse du client/Müşteri Adresi" class="w-full p-4 border rounded-xl shadow-sm outline-none">
+                        <input type="date" id="ui-date" class="w-full p-4 border rounded-xl shadow-sm">
+                    </div>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <h3 class="font-bold text-xs text-blue-900 uppercase border-b pb-1">Type de document/Belge Türü</h3>
+                    <select id="ui-docType" class="w-full p-4 border rounded-xl shadow-sm bg-white outline-none font-bold text-blue-900">
+                        <option value="FACTURE DE :">FACTURE</option>
+                        <option value="PROFORMA DE :">PROFORMA</option>
+                    </select>
+                </div>
+
+                <div id="items-list" class="space-y-4"></div>
+                <button onclick="addArticle()" class="bg-blue-900 text-white px-8 py-3 rounded-xl font-bold">+ Ajouter un article/Ürün Ekle</button>
+
+                <button onclick="generate()" id="btn-gen" class="w-full bg-blue-900 text-white py-6 rounded-2xl font-black text-xl shadow-2xl">
+                    GÉNÉRER LA FACTURE /Fatura Oluştur(PDF)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto mt-10 px-4">
+        <div class="bg-white rounded-3xl shadow-xl p-6 flex justify-between items-center border-t-4 border-slate-300">
+            <h2 class="text-xl font-bold text-slate-700 uppercase">Fatura Geçmişi</h2>
+            <button onclick="accessHistory()" id="btn-lock" class="bg-blue-900 text-white px-6 py-2 rounded-xl font-bold hover:bg-slate-800 transition">
+                🔒 Geçmiş Erişimi
+            </button>
+        </div>
+
+        <div id="history-content" class="hidden mt-4 bg-white rounded-3xl shadow-lg p-6">
+            <div class="mb-4">
+                <input type="text" id="history-search" onkeyup="filterHistory()" placeholder="🔍 Müşteri Ara..." 
+                    class="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-900">
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <tbody id="history-table-body" class="text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="history-content" class="hidden mt-4 bg-white rounded-3xl shadow-lg p-6 overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b text-xs uppercase text-slate-400">
+                        <th class="py-3">Tarih</th>
+                        <th class="py-3">İşlem Türü</th>
+                        <th class="py-3">Müşteri</th>   
+                        <th class="py-3 text-right">Tutar</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table-body" class="text-sm"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="pdf-container">
+        <div id="facture-a4" style="
+            width: 210mm; 
+            height: 295mm; 
+            padding: 10mm; 
+            box-sizing: border-box; 
+            display: flex; 
+            flex-direction: column; 
+            background: white; 
+            overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; margin-top: 0; padding-top: 5px; border-bottom: 2px solid #1e3a8a; padding-bottom: 15px;">
+                <div style="flex: 1; text-align: left;">
+                    <img id="pdf-logo-display" style="height: 75px; width: auto; display: none;">
+                </div>
+
+                <div style="flex: 1; text-align: right;">
+                    <p style="font-size: 11px; margin: 0; color: #1e3a8a; font-weight: 900; text-transform: uppercase;">KULAC S.A.S</p>
+                    <p style="font-size: 10px; color: #64748b; margin: 2px 0;">Moroni Ancien Aérodrome</p>
+                    <p style="font-size: 10px; color: #64748b; margin: 2px 0;">Tel: +269 398 99 08 | kulacsas@gmail.com</p>
+                    <p style="font-size: 10px; color: #64748b; margin: 2px 0;">Inscrit au numéro du registre du commerce</p>
+                    <p style="font-size: 10px; color: #64748b; margin: 2px 0;">KM-HAH-01-2015-B16-06520 Du registre analytique</p>
+                </div>
+            </div>
+
+            <div style="width: 100%; display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; margin-top: 10px; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px;">
+                <h1 id="pdf-main-title" style="font-size: 28px; color: #1e3a8a; font-weight: 900; margin: 0; letter-spacing: 4px; text-transform: uppercase;">FACTURE</h1>
+                
+                <p id="pdf-number-display" style="font-size: 11px; font-weight: bold; color: #94a3b8; margin: 0; padding-bottom: 5px;">
+                    No: 0000-00-000
+                </p>
+            </div>
+
+            <div id="pdf-client-box" style="margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 10px; border-left: 8px solid #1e3a8a;">
+                <p id="pdf-doc-label" style="font-size: 10px; font-weight: 900; color: #1e3a8a; margin: 0 0 5px 0;">FACTURE DE :</p>
+                <p id="pdf-client-display" style="font-size: 20px; font-weight: 800; color: #0f172a; margin: 0;"></p>
+                
+                <div style="margin-top: 5px; font-size: 12px; color: #475569;">
+                    <p id="pdf-phone-display" style="margin: 2px 0;"></p>
+                    <p id="pdf-addr-display" style="margin: 2px 0;"></p>
+                </div>
+            </div>
+
+            <div style="flex-grow: 1;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #1e3a8a; color: white;">
+                            <th style="padding: 8px; text-align: left; font-size: 11px;">Descriptions</th>
+                            <th style="padding: 8px; text-align: right; font-size: 11px;">Prix</th>
+                            <th style="padding: 8px; text-align: center; font-size: 11px;">Nbr (Jour_8h/Heur)</th>
+                            <th style="padding: 8px; text-align: right; font-size: 11px;">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pdf-table-body" style="font-size: 12px;"></tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
+                    <div style="width: 280px; border-top: 4px solid #1e3a8a; padding-top: 10px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 900;">
+                            <span>Montant Total</span>
+                            <span id="pdf-total-val" style="color: #1e3a8a;">0 KMF</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; gap: 20px; border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 20px;">
+    
+                <div style="margin-top: 30px; display: flex; flex-direction: column; align-items: flex-end; width: 100%;">
+    
+                    <div style="text-align: right; margin-bottom: 20px;">
+                        <p style="font-size: 12px; font-weight: 800; color: #0f172a; margin: 0;">Le DIRECTEUR DES OPÉRATIONS</p>
+                        <p style="font-size: 12px; font-weight: 800; color: #1e3a8a; margin: 5px 0 30px 0;">HAYDAR BOURHAN</p>
+                        <p style="font-size: 11px; color: #475569; font-style: italic;">
+                            Fait à Moroni le <span id="pdf-footer-date"></span>
+                        </p>
+                    </div>
+
+                    <div style="width: 100%; text-align: left; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                        
+                        <div style="font-size: 11px; color: #64748b;">
+                            <p style="font-weight: 900; font-size: 12px; margin: 0; color: #1e3a8a; text-transform: uppercase;">PAIMENT BANCAIRE</p>
+                            <p style="margin: 2px 0;">Au nom de: KULAC SAS</p>
+                            <p style="margin: 2px 0;">Banque: AFG BANK-COMORES</p>
+                            <p style="margin: 2px 0;">Agence de: MORONI-Place de France Moroni Grande Comores</p>
+                            <p style="margin: 2px 0;">Compte: 00002 758 561 001 KMF</p>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Connexion a mon Github
+        const GIST_ID = "6d6ef5e77164ab036ae016ee84bb30ab"; 
+        const GITHUB_TOKEN = "";
+        const SECRET_PWD = "Kulacburhan2026";
+
+        // Récupérer l'historique sur le Cloud GitHub
+        async function getCloudHistory() {
+            try {
+                const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                    headers: { "Authorization": `token ${GITHUB_TOKEN}` }
+                });
+                const data = await res.json();
+                return JSON.parse(data.files["history.json"].content);
+            } catch (e) { return []; }
+        }
+
+        async function generateDocNumber() {
+            const history = await getCloudHistory();
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            
+            // On filtre l'historique pour compter les docs du mois/année en cours
+            const count = history.filter(item => {
+                const [day, itemMonth, itemYear] = item.date.split('/');
+                return itemMonth === month && itemYear === year.toString();
+            }).length + 1;
+
+            const sequence = String(count).padStart(3, '0'); 
+            return `${year}-${month}-${sequence}`;
+        }
+
+        // Sauvegarder la vente dans le Cloud
+        async function saveToCloud(client, total, type) {
+            const history = await getCloudHistory();
+            
+            // On récupère les articles actuels pour les stocker
+            const items = [];
+            document.querySelectorAll('.item-row').forEach(row => {
+                items.push({
+                    desc: row.querySelector('.row-desc').value,
+                    price: parseFloat(row.querySelector('.row-price').value) || 0,
+                    qty: parseFloat(row.querySelector('.row-qty').value) || 0
+                });
+            });
+
+            const newEntry = {
+                id: Date.now(), // Identifiant unique pour supprimer
+                date: new Date().toLocaleDateString('fr-FR'),
+                client: client,
+                phone: document.getElementById('ui-clientPhone').value,
+                addr: document.getElementById('ui-clientAddr').value,
+                total: total,
+                type: type,
+                items: items
+            };
+
+            history.unshift(newEntry);
+            await updateGist(history);
+        }
+
+        // Fonction utilitaire pour envoyer vers GitHub
+        async function updateGist(data) {
+            await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                method: 'PATCH',
+                headers: { "Authorization": `token ${GITHUB_TOKEN}` },
+                body: JSON.stringify({
+                    files: { "history.json": { content: JSON.stringify(data) } }
+                })
+            });
+        }
+
+        // Vérification du mot de passe et affichage
+        async function accessHistory() {
+            const pwd = prompt("Lütfen yönetici şifresini giriniz:");
+            if (pwd === SECRET_PWD) {
+                document.getElementById('history-content').classList.remove('hidden');
+                document.getElementById('history-search').value = ""; // Réinitialise la recherche
+                document.getElementById('btn-lock').innerText = "⏳ Chargement...";
+                
+                const data = await getCloudHistory();
+                window.currentHistory = data; // Stockage temporaire pour le téléchargement
+                renderHistoryTable(data); // On appelle la fonction d'affichage
+
+                document.getElementById('btn-lock').innerText = "🔓 Erişim Yetkili";
+            } else {
+                alert("Erişim Reddedildi / Accès refusé ");
+            }
+        }
+
+
+        // Fonction qui dessine le tableau (utilisée pour l'accès et après suppression)
+        function renderHistoryTable(data) {
+            const tbody = document.getElementById('history-table-body');
+            tbody.innerHTML = data.map(item => {
+                const isFacture = item.type.includes("FACTURE");
+                // Couleur de fond légère et couleur de texte selon le type
+                const statusClass = isFacture 
+                    ? "bg-green-50 text-green-700 border-green-200" 
+                    : "bg-red-50 text-red-700 border-red-200";
+
+                return `
+                <tr class="border-b last:border-0 hover:bg-slate-100 transition">
+                    <td class="py-3 text-xs text-slate-500">${item.date}</td>
+                    <td class="py-3 font-bold text-blue-900">${item.client}</td>
+                    <td class="py-3">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-black border ${statusClass}">
+                            ${item.type.replace(" DE :", "")}
+                        </span>
+                    </td>
+                    <td class="py-3 text-right font-black text-slate-900">
+                        ${item.total.toLocaleString()} KMF
+                    </td>
+                    <td class="py-3 text-right space-x-3">
+                        <button onclick="downloadAgain(${item.id}, window.currentHistory)" title="İndir/Télécharger">📥</button>
+                        <button onclick="deleteEntry(${item.id})" class="text-red-500" title="Sil/Supprimer">🗑️</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+        // Au dessus le code pour la conguration de l'historique
+
+        document.getElementById('ui-date').valueAsDate = new Date();
+        let currentLogoBase64 = null;
+
+        // Charger le logo s'il est déjà enregistré
+        window.onload = function() {
+            const saved = localStorage.getItem('moussa_logo');
+            if(saved) {
+                currentLogoBase64 = saved;
+                const img = document.getElementById('pdf-logo-display');
+                img.src = saved;
+                img.style.display = 'block';
+            }
+        };
+
+        // Enregistrer le logo
+        document.getElementById('ui-logo-input').onchange = function(e) {
+            const reader = new FileReader();
+            reader.onload = function() {
+                currentLogoBase64 = reader.result;
+                localStorage.setItem('moussa_logo', currentLogoBase64);
+                const img = document.getElementById('pdf-logo-display');
+                img.src = currentLogoBase64;
+                img.style.display = 'block';
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        };
+
+        function addArticle() {
+            const div = document.createElement('div');
+            div.className = "item-row grid grid-cols-12 gap-3 p-4 border rounded-2xl bg-white mb-2";
+            div.innerHTML = `
+                <div class="col-span-6"><input type="text" placeholder="Désignation/Hizmet Tanimi" class="row-desc w-full p-2 bg-slate-50 rounded"></div>
+                <div class="col-span-3"><input type="number" placeholder="Prix/Fiyat" class="row-price w-full p-2 bg-slate-50 rounded text-right"></div>
+                <div class="col-span-2"><input type="number" value="1" class="row-qty w-full p-2 bg-slate-50 rounded text-center"></div>
+                <div class="col-span-1 flex items-center justify-center"><button onclick="this.parentElement.parentElement.remove()" class="text-red-500">✕</button></div>
+            `;
+            document.getElementById('items-list').appendChild(div);
+        }
+
+        async function generate() {
+            const btn = document.getElementById('btn-gen');
+            const client = document.getElementById('ui-clientName').value;
+            if(!client) return alert("Nom du client requis");
+
+            btn.innerText = "⏳ GÉNÉRATION...";
+            btn.disabled = true;
+
+            // --- NOUVEAU : Gestion du numéro ---
+            const docNumber = await generateDocNumber();
+            document.getElementById('pdf-number-display').innerText = `No: ${docNumber}`;
+
+            const docType = document.getElementById('ui-docType').value;
+            const cleanType = docType.replace(" DE :", ""); // Pour le grand titre en haut
+
+            const dynamicColor = (cleanType === "PROFORMA") ? "#e11d48" : "#1e3a8a";
+
+            // 2. Appliquer la couleur aux titres du PDF
+            const mainTitle = document.getElementById('pdf-main-title');
+            const docLabel = document.getElementById('pdf-doc-label');
+
+            mainTitle.innerText = cleanType;
+            mainTitle.style.color = dynamicColor; // Change la couleur du grand titre
+
+            docLabel.innerText = docType;
+            docLabel.style.color = dynamicColor; // Change la couleur du petit libellé
+
+            // 3. Appliquer la couleur à la bordure du bloc client pour plus de rappel
+            document.getElementById('pdf-client-box').style.borderLeftColor = dynamicColor;
+
+            const phone = document.getElementById('ui-clientPhone').value;
+            const addr = document.getElementById('ui-clientAddr').value;
+
+            document.getElementById('pdf-main-title').innerText = cleanType;
+            document.getElementById('pdf-doc-label').innerText = docType;
+
+            document.getElementById('pdf-client-display').innerText = client;
+            document.getElementById('pdf-phone-display').innerText = document.getElementById('ui-clientPhone').value ? "Tél: " + document.getElementById('ui-clientPhone').value : "";
+            document.getElementById('pdf-addr-display').innerText = document.getElementById('ui-clientAddr').value ? "Adresse: " + document.getElementById('ui-clientAddr').value : "";
+
+            document.getElementById('pdf-client-display').innerText = client;
+            document.getElementById('pdf-phone-display').innerText = phone ? "Tél: " + phone : "";
+            document.getElementById('pdf-addr-display').innerText = addr ? "Adresse: " + addr : "";
+            document.getElementById('pdf-footer-date').innerText = document.getElementById('ui-date').value;
+
+            const tbody = document.getElementById('pdf-table-body');
+            tbody.innerHTML = ''; let total = 0;
+            document.querySelectorAll('.item-row').forEach(row => {
+                const d = row.querySelector('.row-desc').value;
+                const p = parseFloat(row.querySelector('.row-price').value) || 0;
+                const q = parseFloat(row.querySelector('.row-qty').value) || 0;
+                if(d) {
+                    total += (p * q);
+                    tbody.innerHTML += `<tr><td style="padding:6px; border-bottom:1px solid #f8fafc;">${d}</td><td style="padding:6px; text-align:right;">${p.toLocaleString()}</td><td style="padding:6px; text-align:center;">${q}</td><td style="padding:6px; text-align:right; font-weight:bold;">${(p*q).toLocaleString()} KMF</td></tr>`;
+                }
+            });
+    
+            document.getElementById('pdf-total-val').innerText = total.toLocaleString() + " KMF";
+
+            await saveToCloud(client, total, docType); //Pour activer la sauvegarde automatique
+
+            const opt = {
+                margin: 0,
+                filename: `Facture_${client}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(document.getElementById('facture-a4')).save()
+            .then(() => {
+                btn.innerText = "GÉNÉRER LA FACTURE (PDF)";
+                btn.disabled = false;
+                // Nettoyage automatique
+                document.getElementById('ui-clientName').value = "";
+                document.getElementById('ui-clientPhone').value = ""; // Effacer téléphone
+                document.getElementById('ui-clientAddr').value = "";  // Effacer adresse
+                document.getElementById('items-list').innerHTML = "";
+                addArticle();
+            });
+        }
+
+
+        // SUPPRIMER UNE OPÉRATION AVEC CONFIRMATION
+        async function deleteEntry(id) {
+            // Affiche la boîte de dialogue avec OUI (OK) ou NON (Annuler)
+            const confirmation = confirm("Silmek istediğinizden emin misiniz? / Êtes-vous sûr de vouloir supprimer?");
+            
+            if (confirmation) {
+                // Si OUI : On procède à la suppression
+                let history = await getCloudHistory();
+                history = history.filter(item => item.id !== id);
+                
+                await updateGist(history);
+                
+                // Rafraîchissement immédiat de l'affichage
+                const data = await getCloudHistory();
+                renderHistoryTable(data); 
+            } 
+            // Si NON : La fonction s'arrête ici et l'historique reste affiché tel quel
+        }
+
+        function filterHistory() {
+        // Récupère le texte tapé par l'utilisateur
+        const searchTerm = document.getElementById('history-search').value.toLowerCase();
+        
+        // Filtre les données stockées dans window.currentHistory
+        const filteredData = window.currentHistory.filter(item => 
+            item.client.toLowerCase().includes(searchTerm)
+        );
+        
+        // Réaffiche uniquement les lignes correspondantes
+        renderHistoryTable(filteredData);
+    }
+
+        // RE-TÉLÉCHARGER LE PDF
+        function downloadAgain(id, historyData) {
+            const data = historyData.find(item => item.id === id);
+            if(!data) return;
+
+            // 1. Remplissage des données
+            document.getElementById('pdf-client-display').innerText = data.client;
+            document.getElementById('pdf-phone-display').innerText = data.phone ? "Tél: " + data.phone : "";
+            document.getElementById('pdf-addr-display').innerText = data.addr ? "Adresse: " + data.addr : "";
+            
+            const cleanType = data.type.replace(" DE :", "");
+            const mainTitle = document.getElementById('pdf-main-title');
+            const docLabel = document.getElementById('pdf-doc-label');
+            
+            mainTitle.innerText = cleanType;
+            docLabel.innerText = data.type;
+
+            // 2. Gestion des couleurs (Proforma vs Facture)
+            const dynamicColor = (cleanType === "PROFORMA") ? "#e11d48" : "#1e3a8a";
+            mainTitle.style.color = dynamicColor;
+            docLabel.style.color = dynamicColor;
+            document.getElementById('pdf-client-box').style.borderLeftColor = dynamicColor;
+            
+            document.getElementById('pdf-footer-date').innerText = data.date;
+
+            // 3. Reconstruction propre du tableau
+            const tbody = document.getElementById('pdf-table-body');
+            tbody.innerHTML = '';
+            data.items.forEach(it => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="padding:8px; border-bottom:1px solid #f1f5f9;">${it.desc}</td>
+                        <td style="padding:8px; text-align:right;">${it.price.toLocaleString()}</td>
+                        <td style="padding:8px; text-align:center;">${it.qty}</td>
+                        <td style="padding:8px; text-align:right; font-weight:bold;">${(it.price * it.qty).toLocaleString()} KMF</td>
+                    </tr>`;
+            });
+            document.getElementById('pdf-total-val').innerText = data.total.toLocaleString() + " KMF";
+
+            // 4. Paramètres PDF optimisés pour éviter les coupures
+            const element = document.getElementById('facture-a4');
+            const opt = {
+                margin: 0,
+                filename: `${cleanType}_${data.client}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2, 
+                    useCORS: true, 
+                    scrollY: 0,
+                    windowHeight: document.getElementById('facture-a4').offsetHeight
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Lancement de la génération avec un petit délai pour laisser le temps au navigateur de placer les éléments
+            setTimeout(() => {
+                html2pdf().set(opt).from(element).save();
+            }, 500);
+        }
+        addArticle();
+    </script>
+</body>
+</html>
