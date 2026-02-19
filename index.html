@@ -193,19 +193,34 @@
 
     <script>
         // Connexion a mon Github
-        const GIST_ID = "6d6ef5e77164ab036ae016ee84bb30ab"; 
-        const GITHUB_TOKEN = "";
+        const GIST_ID = "6d6ef5e77164ab036ae016ee84bb30ab";
         const SECRET_PWD = "Kulacburhan2026";
 
+        function getSafeToken() {
+            let token = localStorage.getItem('kulac_token');
+            if (!token) {
+                token = prompt("Veuillez entrer votre GitHub Token pour activer les fonctions Cloud :");
+                if (token) localStorage.setItem('kulac_token', token);
+            }
+            return token;
+        }
+
         // Récupérer l'historique sur le Cloud GitHub
+        // REMPLACEZ VOTRE FONCTION ACTUELLE PAR CELLE-CI :
         async function getCloudHistory() {
+            const token = getSafeToken();
+            if (!token) return [];
+            
             try {
                 const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-                    headers: { "Authorization": `token ${GITHUB_TOKEN}` }
+                    headers: { "Authorization": `token ${token}` }
                 });
                 const data = await res.json();
                 return JSON.parse(data.files["history.json"].content);
-            } catch (e) { return []; }
+            } catch (e) { 
+                console.error("Erreur de connexion GitHub");
+                return []; 
+            }
         }
 
         async function generateDocNumber() {
@@ -254,15 +269,20 @@
         }
 
         // Fonction utilitaire pour envoyer vers GitHub
+        // REMPLACEZ VOTRE FONCTION ACTUELLE PAR CELLE-CI :
         async function updateGist(data) {
+            const token = getSafeToken();
+            if (!token) return alert("Token manquant, sauvegarde impossible");
+        
             await fetch(`https://api.github.com/gists/${GIST_ID}`, {
                 method: 'PATCH',
-                headers: { "Authorization": `token ${GITHUB_TOKEN}` },
+                headers: { "Authorization": `token ${token}` },
                 body: JSON.stringify({
                     files: { "history.json": { content: JSON.stringify(data) } }
                 })
             });
         }
+            
 
         // Vérification du mot de passe et affichage
         async function accessHistory() {
@@ -530,4 +550,5 @@
         addArticle();
     </script>
 </body>
+
 </html>
