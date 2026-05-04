@@ -151,7 +151,7 @@
                         <tr style="background: #1e3a8a; color: white;">
                             <th style="padding: 9px; text-align: left; font-size: 11px;">Descriptions</th>
                             <th style="padding: 9px; text-align: right; font-size: 11px;">Prix_Unitaire</th>
-                            <th id="pdf-header-qty" style="padding: 8px; text-align: center; font-size: 11px;">Quantité / Nbr</th>
+                            <th id="pdf-header-qty" style="padding: 8px; text-align: center; font-size: 11px;">Quantité / Nbr_Jour</th>
                             <th style="padding: 9px; text-align: right; font-size: 11px;">TOTAL</th>
                         </tr>
                     </thead>
@@ -407,7 +407,7 @@
             // Mettre à jour l'en-tête du tableau sur le PDF
             const headerQty = document.getElementById('pdf-header-qty');
             if (hasServiceItems) {
-                headerQty.innerText = "Nbr (Jour_8h/Heur)";
+                headerQty.innerText = "Nbr_Jour(8h/Jour)";
             } else {
                 headerQty.innerText = "Quantité";
             }
