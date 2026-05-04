@@ -59,6 +59,11 @@
                 <button onclick="generate()" id="btn-gen" class="w-full bg-blue-900 text-white py-6 rounded-2xl font-black text-xl shadow-2xl">
                     GÉNÉRER LA FACTURE /Fatura Oluştur(PDF)
                 </button>
+                <div class="space-y-2 mb-6">
+                    <h3 class="font-bold text-xs text-blue-900 uppercase border-b pb-1">Note / Instructions Particulières</h3>
+                    <textarea id="ui-note" placeholder="Ex: Validité de l'offre 15 jours, coordonnées bancaires spécifiques..." 
+                            class="w-full p-4 border rounded-xl shadow-sm outline-none h-24 bg-slate-50 focus:bg-white transition"></textarea>
+                </div>
             </div>
         </div>
     </div>
@@ -146,7 +151,7 @@
                         <tr style="background: #1e3a8a; color: white;">
                             <th style="padding: 9px; text-align: left; font-size: 11px;">Descriptions</th>
                             <th style="padding: 9px; text-align: right; font-size: 11px;">Prix_Unitaire</th>
-                            <th style="padding: 9px; text-align: center; font-size: 11px;">Qte (8h/Jour)</th>
+                            <th id="pdf-header-qty" style="padding: 8px; text-align: center; font-size: 11px;">Quantité / Nbr</th>
                             <th style="padding: 9px; text-align: right; font-size: 11px;">TOTAL</th>
                         </tr>
                     </thead>
@@ -174,6 +179,12 @@
                             Fait à Moroni le <span id="pdf-footer-date"></span>
                         </p>
                     </div>
+
+                    <div id="pdf-note-box" style="margin-top: 15px; padding: 10px; border: 1px dashed #cbd5e1; border-radius: 8px; display: none;">
+                        <p style="font-size: 10px; font-weight: 800; color: #1e3a8a; margin: 0 0 5px 0; text-transform: uppercase;">Note :</p>
+                        <p id="pdf-note-display" style="font-size: 10px; color: #475569; margin: 0; white-space: pre-wrap;"></p>
+                    </div>
+
 
                     <div style="width: 100%; text-align: left; border-top: 1px solid #e2e8f0; padding-top: 15px;">
                         
@@ -364,17 +375,42 @@
 
         function addArticle() {
             const div = document.createElement('div');
-            div.className = "item-row grid grid-cols-12 gap-3 p-4 border rounded-2xl bg-white mb-2";
+            div.className = "item-row grid grid-cols-12 gap-3 p-4 border rounded-2xl bg-white mb-2 shadow-sm";
             div.innerHTML = `
-                <div class="col-span-6"><input type="text" placeholder="Désignation/Hizmet Tanimi" class="row-desc w-full p-2 bg-slate-50 rounded"></div>
-                <div class="col-span-3"><input type="number" placeholder="Prix/Fiyat" class="row-price w-full p-2 bg-slate-50 rounded text-right"></div>
-                <div class="col-span-2"><input type="number" value="1" class="row-qty w-full p-2 bg-slate-50 rounded text-center"></div>
-                <div class="col-span-1 flex items-center justify-center"><button onclick="this.parentElement.parentElement.remove()" class="text-red-500">✕</button></div>
+                <div class="col-span-5">
+                    <input type="text" placeholder="Désignation/Hizmet Tanimi" class="row-desc w-full p-2 bg-slate-50 rounded outline-none border focus:border-blue-900">
+                </div>
+                <div class="col-span-3">
+                    <input type="number" placeholder="Prix/Fiyat" class="row-price w-full p-2 bg-slate-50 rounded text-right outline-none border focus:border-blue-900">
+                </div>
+                <div class="col-span-3 flex gap-1">
+                    <input type="number" value="1" class="row-qty w-1/2 p-2 bg-slate-50 rounded text-center outline-none border focus:border-blue-900">
+                    <select class="row-unit w-1/2 p-1 bg-slate-100 rounded text-[10px] font-bold outline-none border">
+                        <option value="Qté">Quantité</option>
+                        <option value="Jour/H">Jour/Heur</option>
+                    </select>
+                </div>
+                <div class="col-span-1 flex items-center justify-center">
+                    <button onclick="this.parentElement.parentElement.remove()" class="text-red-500 hover:scale-110 transition">✕</button>
+                </div>
             `;
             document.getElementById('items-list').appendChild(div);
         }
 
         async function generate() {
+            // Détecter si on utilise des jours/heures dans la liste
+            let hasServiceItems = false;
+            document.querySelectorAll('.row-unit').forEach(select => {
+                if (select.value === "Jour/H") hasServiceItems = true;
+            });
+
+            // Mettre à jour l'en-tête du tableau sur le PDF
+            const headerQty = document.getElementById('pdf-header-qty');
+            if (hasServiceItems) {
+                headerQty.innerText = "Nbr (Jour_8h/Heur)";
+            } else {
+                headerQty.innerText = "Quantité";
+            }
             const btn = document.getElementById('btn-gen');
             const client = document.getElementById('ui-clientName').value;
             if(!client) return alert("Nom du client requis");
@@ -419,15 +455,34 @@
             document.getElementById('pdf-addr-display').innerText = addr ? "Adresse: " + addr : "";
             document.getElementById('pdf-footer-date').innerText = document.getElementById('ui-date').value;
 
+            const noteText = document.getElementById('ui-note').value;
+            const noteBox = document.getElementById('pdf-note-box');
+            if(noteText) {
+                noteBox.style.display = 'block';
+                document.getElementById('pdf-note-display').innerText = noteText;
+            } else {
+                noteBox.style.display = 'none';
+            }
+
             const tbody = document.getElementById('pdf-table-body');
-            tbody.innerHTML = ''; let total = 0;
+            tbody.innerHTML = ''; 
+            let total = 0;
+
             document.querySelectorAll('.item-row').forEach(row => {
                 const d = row.querySelector('.row-desc').value;
                 const p = parseFloat(row.querySelector('.row-price').value) || 0;
                 const q = parseFloat(row.querySelector('.row-qty').value) || 0;
+                const u = row.querySelector('.row-unit').value; // Récupération de l'unité
+
                 if(d) {
                     total += (p * q);
-                    tbody.innerHTML += `<tr><td style="padding:6px; border-bottom:1px solid #f8fafc;">${d}</td><td style="padding:6px; text-align:right;">${p.toLocaleString()}</td><td style="padding:6px; text-align:center;">${q}</td><td style="padding:6px; text-align:right; font-weight:bold;">${(p*q).toLocaleString()} KMF</td></tr>`;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="padding:6px; border-bottom:1px solid #f8fafc;">${d}</td>
+                            <td style="padding:6px; text-align:right;">${p.toLocaleString()}</td>
+                            <td style="padding:6px; text-align:center;">${q} <span style="font-size:8px; color:#64748b;">(${u})</span></td>
+                            <td style="padding:6px; text-align:right; font-weight:bold;">${(p*q).toLocaleString()} KMF</td>
+                        </tr>`;
                 }
             });
     
