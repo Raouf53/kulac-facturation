@@ -210,9 +210,11 @@
 
         function getSafeToken() {
             let token = localStorage.getItem('kulac_token');
-            if (!token) {
-                token = prompt("Veuillez entrer votre GitHub Token pour activer les fonctions Cloud :");
-                if (token) localStorage.setItem('kulac_token', token);
+            if (!token || token.trim() === "") {
+                token = prompt("🔒 Sécurité GitHub : Veuillez entrer votre Personal Access Token (PAT) :");
+                if (token) {
+                    localStorage.setItem('kulac_token', token.trim());
+                }
             }
             return token;
         }
