@@ -243,14 +243,19 @@
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             
-            // On filtre l'historique pour compter les docs du mois/année en cours
+            // On compte le nombre de documents existants pour ce mois et cette année
             const count = history.filter(item => {
-                const [day, itemMonth, itemYear] = item.date.split('/');
-                return itemMonth === month && itemYear === year.toString();
+                // On vérifie la date stockée (format JJ/MM/AAAA)
+                if (!item.date) return false;
+                const parts = item.date.split('/');
+                return parts[1] === month && parts[2] === year.toString();
             }).length + 1;
-
-            const sequence = String(count).padStart(3, '0'); 
-            return `${year}-${month}-${sequence}`;
+        
+            // Séquence sur 2 chiffres (01, 02...)
+            const sequence = String(count).padStart(2, '0'); 
+            
+            // Format final : REF + mois + séquence + / + année + KU
+            return `REF${month}${sequence}/${year}KU`;
         }
 
         // Sauvegarder la vente dans le Cloud
