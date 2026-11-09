@@ -576,7 +576,17 @@
             
             document.getElementById('pdf-footer-date').innerText = data.date;
 
-            // 3. Reconstruction propre du tableau
+            // 3. GESTION DE LA NOTE (Afficher uniquement si l'ancienne facture en avait une)
+            const noteBox = document.getElementById('pdf-note-box');
+            if (data.note && data.note.trim() !== "") {
+                noteBox.style.display = 'block';
+                document.getElementById('pdf-note-display').innerText = data.note;
+            } else {
+                noteBox.style.display = 'none';
+                document.getElementById('pdf-note-display').innerText = "";
+            }
+
+            // 4. Reconstruction propre du tableau
             const tbody = document.getElementById('pdf-table-body');
             tbody.innerHTML = '';
             data.items.forEach(it => {
@@ -590,7 +600,7 @@
             });
             document.getElementById('pdf-total-val').innerText = data.total.toLocaleString() + " KMF";
 
-            // 4. Paramètres PDF optimisés pour éviter les coupures
+            // 5. Paramètres PDF optimisés pour éviter les coupures
             const element = document.getElementById('facture-a4');
             const opt = {
                 margin: 0,
