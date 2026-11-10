@@ -67,6 +67,26 @@
             </div>
         </div>
     </div>
+    <!-- Petite Affiche : Total Global des Factures -->
+    <div class="max-w-4xl mx-auto px-4 my-6">
+        <div class="bg-gradient-to-br from-blue-900 via-blue-800 to-slate-900 text-white p-6 rounded-3xl shadow-2xl border border-blue-700 flex items-center justify-between relative overflow-hidden">
+            
+            <!-- Effet de fond décoratif -->
+            <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-blue-600/20 rounded-full blur-2xl pointer-events-none"></div>
+    
+            <div>
+                <span class="bg-blue-700/60 text-blue-200 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-blue-500/30">
+                    📊 Synthèse KULAC S.A.S
+                </span>
+                <p class="text-xs font-bold text-blue-200 uppercase tracking-wider mt-3">Total Global des Factures / Ventes</p>
+                <p id="total-invoices-display" class="text-3xl md:text-4xl font-black mt-1 tracking-tight text-white">0 KMF</p>
+            </div>
+    
+            <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-inner">
+                <span class="text-3xl">📑</span>
+            </div>
+        </div>
+    </div>
 
     <div class="max-w-4xl mx-auto mt-10 px-4">
         <div class="bg-white rounded-3xl shadow-xl p-6 flex justify-between items-center border-t-4 border-slate-300">
@@ -320,6 +340,30 @@
                 alert("Erişim Reddedildi / Accès refusé ");
             }
         }
+        async function updateInvoiceTotalDisplay() {
+            try {
+                const history = await getCloudHistory();
+                let globalTotal = 0;
+        
+                if (history && history.length > 0) {
+                    history.forEach(item => {
+                        // On additionne uniquement les éléments de type Facture/Vente
+                        if (item.total && (!item.type || item.type.includes("FACTURE") || item.type === "Vente")) {
+                            globalTotal += parseFloat(item.total) || 0;
+                        }
+                    });
+                }
+        
+                // Mise à jour de l'affichage sur l'affiche
+                document.getElementById('total-invoices-display').innerText = globalTotal.toLocaleString('fr-FR') + ' KMF';
+            } catch (e) {
+                console.error("Erreur de calcul du total des factures", e);
+            }
+        }
+        
+        // Appelez cette fonction juste après la connexion ou le chargement de l'historique
+        // Par exemple, à la fin de votre fonction accessHistory() :
+        // updateInvoiceTotalDisplay();
 
 
         // Fonction qui dessine le tableau (utilisée pour l'accès et après suppression)
