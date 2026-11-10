@@ -334,6 +334,7 @@
                 const data = await getCloudHistory();
                 window.currentHistory = data; // Stockage temporaire pour le téléchargement
                 renderHistoryTable(data); // On appelle la fonction d'affichage
+                updateInvoiceTotalDisplay();
 
                 document.getElementById('btn-lock').innerText = "🔓 Erişim Yetkili";
             } else {
@@ -341,29 +342,26 @@
             }
         }
         async function updateInvoiceTotalDisplay() {
-            try {
-                const history = await getCloudHistory();
-                let globalTotal = 0;
-        
-                if (history && history.length > 0) {
-                    history.forEach(item => {
-                        // On additionne uniquement les éléments de type Facture/Vente
-                        if (item.total && (!item.type || item.type.includes("FACTURE") || item.type === "Vente")) {
-                            globalTotal += parseFloat(item.total) || 0;
-                        }
-                    });
-                }
-        
-                // Mise à jour de l'affichage sur l'affiche
-                document.getElementById('total-invoices-display').innerText = globalTotal.toLocaleString('fr-FR') + ' KMF';
-            } catch (e) {
-                console.error("Erreur de calcul du total des factures", e);
+            // Utilise l'historique déjà en mémoire ou va le chercher sur le Cloud
+            let history = window.currentHistory;
+            if (!history || history.length === 0) {
+                history = await getCloudHistory();
+            }
+            
+            let globalTotal = 0;
+            if (history && history.length > 0) {
+                history.forEach(item => {
+                    if (item.total) {
+                        globalTotal += parseFloat(item.total) || 0;
+                    }
+                });
+            }
+            
+            const displayElem = document.getElementById('total-invoices-display');
+            if (displayElem) {
+                displayElem.innerText = globalTotal.toLocaleString('fr-FR') + ' KMF';
             }
         }
-        
-        // Appelez cette fonction juste après la connexion ou le chargement de l'historique
-        // Par exemple, à la fin de votre fonction accessHistory() :
-        // updateInvoiceTotalDisplay();
 
 
         // Fonction qui dessine le tableau (utilisée pour l'accès et après suppression)
